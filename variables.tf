@@ -1,0 +1,85 @@
+# ---------------------------------------------------------------------------------------------------------------------
+# GENERAL
+# These variables pass in general data from the calling module, such as the AWS Region and billing tags.
+# ---------------------------------------------------------------------------------------------------------------------
+
+variable "default_tags" {
+  description = "Default billing tags to be applied across all resources"
+  type        = map(string)
+  default     = {}
+}
+
+# List of Azure Locations: https://azure.microsoft.com/en-us/global-infrastructure/geographies/
+variable "location" {
+  description = "The Azure location for these resources, such as East US."
+  type        = string
+  default     = "East US"
+}
+
+variable "environment" {
+  description = "Specify the type of environment(dev, demo, prod) in which the storage account will be created."
+  default     = ""
+  type        = string
+}
+
+# ---------------------------------------------------------------------------------------------------------------------
+# RESOURCE VALUES
+# These variables pass in actual values to configure resources. CIDRs, Instance Sizes, etc.
+# ---------------------------------------------------------------------------------------------------------------------
+variable "storage_account_tier" {
+  type        = string
+  default     = "Standard"
+  description = "Defines the Tier to use for this storage account. Valid options are Standard and Premium"
+}
+variable "storage_account_replication_type" {
+  type        = string
+  default     = "GRS"
+  description = "Defines the type of replication to use for this storage account. Valid options are LRS, GRS, RAGRS, ZRS, GZRS and RAGZRS."
+  # TODO: Validate that the user supplies a valid string only.
+}
+
+variable "key_vault_key_type" {
+  type        = string
+  default     = "RSA"
+  description = "Specifies the Key Type to use for this Key Vault Key. For Terraform state, supply RSA or RSA-HSM."
+}
+
+variable "key_vault_sku_name" {
+  type        = string
+  default     = "standard"
+  description = "The Name of the SKU used for this Key Vault. Possible values are standard and premium."
+}
+
+variable "key_vault_key_expiration_date" {
+  type        = string
+  default     = "2022-12-30T20:00:00Z"
+  description = "Expiration of the Key Vault Key, in UTC datetime (Y-m-d'T'H:M:S'Z')."
+}
+
+# ---------------------------------------------------------------------------------------------------------------------
+# RESOURCE REFERENCES
+# These variables pass in metadata on other AWS resources, such as ARNs, Names, etc.
+# ---------------------------------------------------------------------------------------------------------------------
+variable "resource_group_name" {
+  default     = ""
+  type        = string
+  description = "The resource group name"
+}
+
+variable "storage_account_name" {
+  type        = string
+  default     = ""
+  description = "Storage account name"
+}
+
+variable "storage_container_name" {
+  type        = string
+  default     = ""
+  description = "Storage container name"
+}
+
+variable "key_vault_name" {
+  type        = string
+  default     = ""
+  description = "Key Vault account name"
+}
