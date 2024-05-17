@@ -1,12 +1,7 @@
-resource "azurerm_resource_group" "tfstate" {
-  name     = format("%s-%s-tfstate-rg", var.environment, var.resource_group_name)
-  location = var.location
-}
-
 resource "azurerm_storage_account" "tfstate" {
   name                     = var.storage_account_name
-  resource_group_name      = azurerm_resource_group.tfstate.name
-  location                 = azurerm_resource_group.tfstate.location
+  resource_group_name      = data.azurerm_resource_group.tfstate.name
+  location                 = data.azurerm_resource_group.tfstate.location
   account_tier             = var.storage_account_tier
   account_replication_type = var.storage_account_replication_type
 
@@ -24,6 +19,10 @@ resource "azurerm_storage_account" "tfstate" {
   min_tls_version                 = "TLS1_2"
   allow_nested_items_to_be_public = false
 
+  lifecycle {
+    ignore_changes = [customer_managed_key]
+  }
+
   # TODO: Add tags
 }
 
@@ -36,30 +35,46 @@ resource "azurerm_storage_container" "tfstate" {
 
 resource "azurerm_key_vault" "tfstate" {
   name                       = var.key_vault_name
-  location                   = azurerm_resource_group.tfstate.location
-  resource_group_name        = azurerm_resource_group.tfstate.name
-  tenant_id                  = data.azurerm_client_config.current.tenant_id
+  location                   = data.azurerm_resource_group.tfstate.location
+  resource_group_name        = data.azurerm_resource_group.tfstate.name
+  tenant_id                  = data.azuread_client_config.current.tenant_id
   sku_name                   = var.key_vault_sku_name
   purge_protection_enabled   = true
   soft_delete_retention_days = 7
+
+  enable_rbac_authorization = false
+
+  # Disable certificate lifecycle contact checks
+  lifecycle {
+    ignore_changes = [contact]
+  }
+
+  network_acls {
+    bypass = "AzureServices"
+    # I have no VPN/subnets configured for the moment, so we'll allow external traffic.
+    default_action = "Allow"
+    # If you did have subnets, configure them here and make sure the agents running your
+    # Terraform operations have access to these subnets.
+    # virtual_network_subnet_ids = [data.azurerm_subnet.v-subnet.id]
+  }
 }
 
 resource "azurerm_key_vault_access_policy" "storage" {
   key_vault_id = azurerm_key_vault.tfstate.id
-  tenant_id    = data.azurerm_client_config.current.tenant_id
+  tenant_id    = data.azuread_client_config.current.tenant_id
   object_id    = azurerm_storage_account.tfstate.identity.0.principal_id
 
-  key_permissions    = ["get", "create", "list", "restore", "recover", "unwrapkey", "wrapkey", "purge", "encrypt", "decrypt", "sign", "verify"]
-  secret_permissions = ["get"]
+  key_permissions    = ["Get", "Create", "List", "Restore", "Recover", "UnwrapKey", "WrapKey", "Purge", "Encrypt", "Decrypt", "Sign", "Verify"]
+  secret_permissions = ["Get"]
 }
 
 resource "azurerm_key_vault_access_policy" "client" {
   key_vault_id = azurerm_key_vault.tfstate.id
-  tenant_id    = data.azurerm_client_config.current.tenant_id
-  object_id    = data.azurerm_client_config.current.object_id
+  tenant_id    = data.azuread_client_config.current.tenant_id
+  object_id    = data.azuread_client_config.current.object_id
 
-  key_permissions    = ["get", "create", "delete", "list", "restore", "recover", "unwrapkey", "wrapkey", "purge", "encrypt", "decrypt", "sign", "verify"]
-  secret_permissions = ["get"]
+  key_permissions    = ["Get", "Create", "Delete", "List", "Restore", "Recover", "UnwrapKey", "WrapKey", "Purge", "Encrypt", "Decrypt", "Sign", "Verify", "Rotate", "GetRotationPolicy", "SetRotationPolicy"]
+  secret_permissions = ["Get"]
 }
 
 resource "azurerm_key_vault_key" "tfstate" {

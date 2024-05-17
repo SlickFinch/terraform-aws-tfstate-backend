@@ -9,19 +9,6 @@ variable "default_tags" {
   default     = {}
 }
 
-# List of Azure Locations: https://azure.microsoft.com/en-us/global-infrastructure/geographies/
-variable "location" {
-  description = "The Azure location for these resources, such as East US."
-  type        = string
-  default     = "East US"
-}
-
-variable "environment" {
-  description = "Specify the type of environment(dev, demo, prod) in which the storage account will be created."
-  default     = ""
-  type        = string
-}
-
 # ---------------------------------------------------------------------------------------------------------------------
 # RESOURCE VALUES
 # These variables pass in actual values to configure resources. CIDRs, Instance Sizes, etc.
@@ -52,7 +39,7 @@ variable "key_vault_sku_name" {
 
 variable "key_vault_key_expiration_date" {
   type        = string
-  default     = "2022-12-30T20:00:00Z"
+  default     = null
   description = "Expiration of the Key Vault Key, in UTC datetime (Y-m-d'T'H:M:S'Z')."
 }
 

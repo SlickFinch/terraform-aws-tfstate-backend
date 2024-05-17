@@ -4,12 +4,12 @@
 # ---------------------------------------------------------------------------------------------------------------------
 
 output "resource_group_id" {
-  value       = azurerm_resource_group.tfstate.id
+  value       = data.azurerm_resource_group.tfstate.id
   description = "The ID of the Resource Group."
 }
 
 output "resource_group_name" {
-  value       = azurerm_resource_group.tfstate.name
+  value       = data.azurerm_resource_group.tfstate.name
   description = "The name of the resource group"
 }
 
@@ -130,12 +130,12 @@ Create a file called state.tf with the following contents:
 
 terraform {
   backend "azurerm" {
-    resource_group_name  = "${azurerm_resource_group.tfstate.name}
+    resource_group_name  = "${data.azurerm_resource_group.tfstate.name}
     storage_account_name = "${azurerm_storage_account.tfstate.name}"
     container_name       = "${azurerm_storage_container.tfstate.name}"
     key                  = "statebucket/terraform.tfstate"
-    subscription_id      = "${data.azurerm_client_config.current.subscription_id}"
-    tenant_id            = "${data.azurerm_client_config.current.tenant_id}"
+    subscription_id      = "set_me"
+    tenant_id            = "${data.azuread_client_config.current.tenant_id}"
   }
 }
 INSTRUCTIONS
