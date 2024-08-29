@@ -1,100 +1,267 @@
-resource "azurerm_storage_account" "tfstate" {
-  name                     = var.storage_account_name
-  resource_group_name      = data.azurerm_resource_group.tfstate.name
-  location                 = data.azurerm_resource_group.tfstate.location
-  account_tier             = var.storage_account_tier
-  account_replication_type = var.storage_account_replication_type
+locals {
+  enabled = module.this.enabled
 
-  # Explicit defaults
-  access_tier  = "Hot"
-  account_kind = "StorageV2"
+  bucket_enabled   = local.enabled && var.bucket_enabled
+  dynamodb_enabled = local.enabled && var.dynamodb_enabled
 
-  # This is necessary to access Key Vault
-  identity {
-    type = "SystemAssigned"
+  dynamodb_table_name = local.dynamodb_enabled ? var.dynamodb_table_name : ""
+
+  prevent_unencrypted_uploads = local.enabled && var.prevent_unencrypted_uploads
+
+  policy = one(data.aws_iam_policy_document.aggregated_policy[*].json)
+
+  terraform_backend_config_file = format(
+    "%s/%s",
+    var.terraform_backend_config_file_path,
+    var.terraform_backend_config_file_name
+  )
+
+  terraform_backend_config_template_file = var.terraform_backend_config_template_file != "" ? var.terraform_backend_config_template_file : "${path.module}/templates/terraform.tf.tpl"
+
+  terraform_backend_config_content = templatefile(local.terraform_backend_config_template_file, {
+    region = data.aws_region.current.name
+    # Template file inputs cannot be null, so we use empty string if the variable is null
+    bucket = try(aws_s3_bucket.default[0].id, "")
+
+    dynamodb_table = try(aws_dynamodb_table.with_server_side_encryption[0].name, "")
+
+    encrypt              = "true"
+    role_arn             = var.role_arn == null ? "" : var.role_arn
+    profile              = var.profile == null ? "" : var.profile
+    terraform_version    = var.terraform_version == null ? "" : var.terraform_version
+    terraform_state_file = var.terraform_state_file == null ? "" : var.terraform_state_file
+  })
+
+  labels_enabled = local.enabled && (var.s3_bucket_name == "" || var.s3_bucket_name == null)
+
+  bucket_name = var.s3_bucket_name
+}
+
+data "aws_region" "current" {}
+
+data "aws_iam_policy_document" "aggregated_policy" {
+  count = local.enabled ? 1 : 0
+
+  source_policy_documents   = [one(data.aws_iam_policy_document.bucket_policy[*].json)]
+  override_policy_documents = var.source_policy_documents
+}
+
+data "aws_iam_policy_document" "bucket_policy" {
+  count = local.enabled ? 1 : 0
+
+  dynamic "statement" {
+    for_each = local.prevent_unencrypted_uploads ? ["true"] : []
+
+    content {
+      sid = "DenyIncorrectEncryptionHeader"
+
+      effect = "Deny"
+
+      principals {
+        identifiers = ["*"]
+        type        = "AWS"
+      }
+
+      actions = [
+        "s3:PutObject"
+      ]
+
+      resources = [
+        "${var.arn_format}:s3:::${local.bucket_name}/*",
+      ]
+
+      condition {
+        test     = "StringNotEquals"
+        variable = "s3:x-amz-server-side-encryption"
+
+        values = [
+          "AES256",
+          "aws:kms"
+        ]
+      }
+    }
   }
 
-  # Secure Defaults
-  enable_https_traffic_only       = true
-  min_tls_version                 = "TLS1_2"
-  allow_nested_items_to_be_public = false
+  dynamic "statement" {
+    for_each = local.prevent_unencrypted_uploads ? ["true"] : []
 
-  lifecycle {
-    ignore_changes = [customer_managed_key]
+    content {
+      sid = "DenyUnEncryptedObjectUploads"
+
+      effect = "Deny"
+
+      principals {
+        identifiers = ["*"]
+        type        = "AWS"
+      }
+
+      actions = [
+        "s3:PutObject"
+      ]
+
+      resources = [
+        "${var.arn_format}:s3:::${local.bucket_name}/*",
+      ]
+
+      condition {
+        test     = "Null"
+        variable = "s3:x-amz-server-side-encryption"
+
+        values = [
+          "true"
+        ]
+      }
+    }
   }
 
-  # TODO: Add tags
-}
+  statement {
+    sid = "EnforceTlsRequestsOnly"
 
-resource "azurerm_storage_container" "tfstate" {
-  name                  = var.storage_container_name
-  storage_account_name  = azurerm_storage_account.tfstate.name
-  container_access_type = "private"
-}
+    effect = "Deny"
 
+    principals {
+      type        = "AWS"
+      identifiers = ["*"]
+    }
 
-resource "azurerm_key_vault" "tfstate" {
-  name                       = var.key_vault_name
-  location                   = data.azurerm_resource_group.tfstate.location
-  resource_group_name        = data.azurerm_resource_group.tfstate.name
-  tenant_id                  = data.azuread_client_config.current.tenant_id
-  sku_name                   = var.key_vault_sku_name
-  purge_protection_enabled   = true
-  soft_delete_retention_days = 7
+    actions = ["s3:*"]
 
-  enable_rbac_authorization = false
+    resources = [
+      "${var.arn_format}:s3:::${local.bucket_name}",
+      "${var.arn_format}:s3:::${local.bucket_name}/*",
+    ]
 
-  # Disable certificate lifecycle contact checks
-  lifecycle {
-    ignore_changes = [contact]
-  }
-
-  network_acls {
-    bypass = "AzureServices"
-    # I have no VPN/subnets configured for the moment, so we'll allow external traffic.
-    default_action = "Allow"
-    # If you did have subnets, configure them here and make sure the agents running your
-    # Terraform operations have access to these subnets.
-    # virtual_network_subnet_ids = [data.azurerm_subnet.v-subnet.id]
+    condition {
+      test     = "Bool"
+      variable = "aws:SecureTransport"
+      values   = ["false"]
+    }
   }
 }
 
-resource "azurerm_key_vault_access_policy" "storage" {
-  key_vault_id = azurerm_key_vault.tfstate.id
-  tenant_id    = data.azuread_client_config.current.tenant_id
-  object_id    = azurerm_storage_account.tfstate.identity.0.principal_id
+#S3 access controls, policies and logging are defined as seperate terraform resources below
+resource "aws_s3_bucket" "default" {
+  count = local.bucket_enabled ? 1 : 0
 
-  key_permissions    = ["Get", "Create", "List", "Restore", "Recover", "UnwrapKey", "WrapKey", "Purge", "Encrypt", "Decrypt", "Sign", "Verify"]
-  secret_permissions = ["Get"]
+  bucket        = substr(local.bucket_name, 0, 63)
+  force_destroy = var.force_destroy
+
+  tags = var.default_tags
 }
 
-resource "azurerm_key_vault_access_policy" "client" {
-  key_vault_id = azurerm_key_vault.tfstate.id
-  tenant_id    = data.azuread_client_config.current.tenant_id
-  object_id    = data.azuread_client_config.current.object_id
+resource "aws_s3_bucket_policy" "default" {
+  count = local.bucket_enabled ? 1 : 0
 
-  key_permissions    = ["Get", "Create", "Delete", "List", "Restore", "Recover", "UnwrapKey", "WrapKey", "Purge", "Encrypt", "Decrypt", "Sign", "Verify", "Rotate", "GetRotationPolicy", "SetRotationPolicy"]
-  secret_permissions = ["Get"]
+  bucket     = one(aws_s3_bucket.default[*].id)
+  policy     = local.policy
+  depends_on = [aws_s3_bucket_public_access_block.default]
 }
 
-resource "azurerm_key_vault_key" "tfstate" {
-  name         = var.key_vault_name
-  key_vault_id = azurerm_key_vault.tfstate.id
-  key_type     = var.key_vault_key_type # RSA or RSA-HSM
-  key_size     = 2048
-  key_opts     = ["decrypt", "encrypt", "sign", "unwrapKey", "verify", "wrapKey"]
+resource "aws_s3_bucket_acl" "default" {
+  count = local.bucket_enabled && !var.bucket_ownership_enforced_enabled ? 1 : 0
 
-  depends_on = [
-    azurerm_key_vault_access_policy.client,
-    azurerm_key_vault_access_policy.storage,
-  ]
-  expiration_date = var.key_vault_key_expiration_date
-  # TODO: Add tags
+  bucket = one(aws_s3_bucket.default[*].id)
+  acl    = var.acl
+
+  # Default "bucket ownership controls" for new S3 buckets is "BucketOwnerEnforced", which disables ACLs.
+  # So, we need to wait until we change bucket ownership to "BucketOwnerPreferred" before we can set ACLs.
+  depends_on = [aws_s3_bucket_ownership_controls.default]
 }
 
-resource "azurerm_storage_account_customer_managed_key" "tfstate" {
-  storage_account_id = azurerm_storage_account.tfstate.id
-  key_vault_id       = azurerm_key_vault.tfstate.id
-  key_name           = azurerm_key_vault_key.tfstate.name
-  key_version        = null # null enables automatic key rotation
+resource "aws_s3_bucket_versioning" "default" {
+  count = local.bucket_enabled ? 1 : 0
+
+  bucket = one(aws_s3_bucket.default[*].id)
+
+  versioning_configuration {
+    status     = "Enabled"
+    mfa_delete = var.mfa_delete ? "Enabled" : "Disabled"
+  }
+}
+
+resource "aws_s3_bucket_server_side_encryption_configuration" "default" {
+  count = local.bucket_enabled ? 1 : 0
+
+  bucket = one(aws_s3_bucket.default[*].id)
+
+  rule {
+    apply_server_side_encryption_by_default {
+      sse_algorithm     = var.sse_encryption
+      kms_master_key_id = var.kms_master_key_id
+    }
+  }
+}
+
+resource "aws_s3_bucket_logging" "default" {
+  count = local.bucket_enabled && length(var.logging) > 0 ? 1 : 0
+
+  bucket = one(aws_s3_bucket.default[*].id)
+
+  target_bucket = var.logging[0].target_bucket
+  target_prefix = var.logging[0].target_prefix
+}
+
+resource "aws_s3_bucket_public_access_block" "default" {
+  count = local.bucket_enabled && var.enable_public_access_block ? 1 : 0
+
+  bucket                  = one(aws_s3_bucket.default[*].id)
+  block_public_acls       = var.block_public_acls
+  ignore_public_acls      = var.ignore_public_acls
+  block_public_policy     = var.block_public_policy
+  restrict_public_buckets = var.restrict_public_buckets
+}
+
+# After you apply the bucket owner enforced setting for Object Ownership, ACLs are disabled for the bucket.
+# See https://docs.aws.amazon.com/AmazonS3/latest/userguide/about-object-ownership.html
+resource "aws_s3_bucket_ownership_controls" "default" {
+  count  = local.bucket_enabled ? 1 : 0
+  bucket = one(aws_s3_bucket.default[*].id)
+
+  rule {
+    object_ownership = var.bucket_ownership_enforced_enabled ? "BucketOwnerEnforced" : "BucketOwnerPreferred"
+  }
+  depends_on = [time_sleep.wait_for_aws_s3_bucket_settings]
+}
+
+# Workaround S3 eventual consistency for settings objects
+resource "time_sleep" "wait_for_aws_s3_bucket_settings" {
+  count = local.enabled ? 1 : 0
+
+  depends_on       = [aws_s3_bucket_public_access_block.default, aws_s3_bucket_policy.default]
+  create_duration  = "30s"
+  destroy_duration = "30s"
+}
+
+resource "aws_dynamodb_table" "with_server_side_encryption" {
+  count                       = local.dynamodb_enabled ? 1 : 0
+  name                        = local.dynamodb_table_name
+  billing_mode                = var.billing_mode
+  read_capacity               = var.billing_mode == "PROVISIONED" ? var.read_capacity : null
+  write_capacity              = var.billing_mode == "PROVISIONED" ? var.write_capacity : null
+  deletion_protection_enabled = var.deletion_protection_enabled
+
+  # https://www.terraform.io/docs/backends/types/s3.html#dynamodb_table
+  hash_key = "LockID"
+
+  server_side_encryption { #tfsec:ignore:aws-dynamodb-table-customer-key
+    enabled = true
+  }
+
+  point_in_time_recovery {
+    enabled = var.enable_point_in_time_recovery
+  }
+
+  attribute {
+    name = "LockID"
+    type = "S"
+  }
+
+  tags = module.dynamodb_table_label.tags
+}
+
+resource "local_file" "terraform_backend_config" {
+  count           = local.enabled && var.terraform_backend_config_file_path != "" ? 1 : 0
+  content         = local.terraform_backend_config_content
+  filename        = local.terraform_backend_config_file
+  file_permission = "0644"
 }

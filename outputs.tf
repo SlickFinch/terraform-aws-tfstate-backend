@@ -1,142 +1,39 @@
-# ---------------------------------------------------------------------------------------------------------------------
-# Resource Group attributes
-# https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/resource_group#attributes-reference
-# ---------------------------------------------------------------------------------------------------------------------
-
-output "resource_group_id" {
-  value       = data.azurerm_resource_group.tfstate.id
-  description = "The ID of the Resource Group."
+output "s3_bucket_domain_name" {
+  value       = one(aws_s3_bucket.default[*].bucket_domain_name)
+  description = "S3 bucket domain name"
 }
 
-output "resource_group_name" {
-  value       = data.azurerm_resource_group.tfstate.name
-  description = "The name of the resource group"
+output "s3_bucket_id" {
+  value       = one(aws_s3_bucket.default[*].id)
+  description = "S3 bucket ID"
 }
 
-# ---------------------------------------------------------------------------------------------------------------------
-# Storage Account attributes:
-# https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/storage_account#attributes-reference
-# ---------------------------------------------------------------------------------------------------------------------
-output "storage_account_id" {
-  value       = azurerm_storage_account.tfstate.id
-  description = "The ID of the Storage Account"
+output "s3_bucket_arn" {
+  value       = one(aws_s3_bucket.default[*].arn)
+  description = "S3 bucket ARN"
 }
 
-output "storage_account_primary_location" {
-  value       = azurerm_storage_account.tfstate.primary_location
-  description = "The primary location of the storage account."
+output "s3_replication_role_arn" {
+  value       = one(aws_iam_role.replication[*].arn)
+  description = "The ARN of the IAM Role created for replication, if enabled."
 }
 
-output "storage_account_primary_blob_endpoint" {
-  value       = azurerm_storage_account.tfstate.primary_blob_endpoint
-  description = "The endpoint URL for blob storage in the primary location."
+output "dynamodb_table_name" {
+  value       = one(aws_dynamodb_table.with_server_side_encryption[*].name)
+  description = "DynamoDB table name"
 }
 
-output "storage_account_primary_access_key" {
-  value       = azurerm_storage_account.tfstate.primary_access_key
-  description = "The primary access key for the storage account. This value is sensitive and masked from Terraform output."
-  sensitive   = true
-}
-/*
-output "storage_account_secondary_access_key" {
-  value       = azurerm_storage_account.tfstate.secondary_access_key
-  description = "The secondary access key for the storage account."
-  sensitive   = true
+output "dynamodb_table_id" {
+  value       = one(aws_dynamodb_table.with_server_side_encryption[*].id)
+  description = "DynamoDB table ID"
 }
 
-output "storage_account_primary_connection_string" {
-  value       = azurerm_storage_account.tfstate.primary_connection_string
-  description = "The connection string associated with the primary location."
-  sensitive   = true
+output "dynamodb_table_arn" {
+  value       = one(aws_dynamodb_table.with_server_side_encryption[*].arn)
+  description = "DynamoDB table ARN"
 }
 
-output "storage_account_secondary_connection_string" {
-  value       = azurerm_storage_account.tfstate.secondary_connection_string
-  description = "The connection string associated with the secondary location."
-  sensitive   = true
-}
-
-output "storage_account_primary_blob_connection_string" {
-  value       = azurerm_storage_account.tfstate.primary_blob_connection_string
-  description = "The connection string associated with the primary blob location."
-  sensitive   = true
-}
-
-output "storage_account_secondary_blob_connection_string" {
-  value       = azurerm_storage_account.tfstate.secondary_blob_connection_string
-  description = "The connection string associated with the secondary blob location."
-  sensitive   = true
-}
-*/
-# ---------------------------------------------------------------------------------------------------------------------
-# Storage Container attributes
-# https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/storage_container#attributes-reference
-# ---------------------------------------------------------------------------------------------------------------------
-
-output "storage_container_id" {
-  value       = azurerm_storage_container.tfstate.id
-  description = "The ID of the Storage Container."
-}
-
-output "storage_container_has_immutability_policy" {
-  value       = azurerm_storage_container.tfstate.has_immutability_policy
-  description = "Is there an Immutability Policy configured on this Storage Container?"
-}
-
-output "storage_container_has_legal_hold" {
-  value       = azurerm_storage_container.tfstate.has_legal_hold
-  description = "Is there a Legal Hold configured on this Storage Container?"
-}
-
-output "storage_container_resource_manager_id" {
-  value       = azurerm_storage_container.tfstate.resource_manager_id
-  description = "The Resource Manager ID of this Storage Container."
-}
-
-# ---------------------------------------------------------------------------------------------------------------------
-# Key Vault Attributes
-# https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/key_vault_key#attributes-reference
-# ---------------------------------------------------------------------------------------------------------------------
-### The Key Vault ###
-output "key_vault_id" {
-  value       = azurerm_key_vault.tfstate.id
-  description = ""
-}
-
-### the Key Vault Key ###
-output "key_vault_key_id" {
-  value       = azurerm_key_vault_key.tfstate.id
-  description = "The Key Vault Key ID"
-}
-
-output "key_vault_key_version" {
-  value       = azurerm_key_vault_key.tfstate.version
-  description = "The current version of the Key Vault Key."
-}
-
-/*
-output "key_vault_key_versionless_id" {
-  value       = azurerm_key_vault_key.tfstate.versionless_id
-  description = "The Base ID of the Key Vault Key"
-}
-*/
-
-
-output "z_instructions" {
-  value = <<INSTRUCTIONS
-If you just ran this for the first time, you are using local Terraform state. Let's move the local Terraform state into the storage account that we just created.
-
-Create a file called state.tf with the following contents:
-
-terraform {
-  backend "azurerm" {
-    resource_group_name  = "${data.azurerm_resource_group.tfstate.name}
-    storage_account_name = "${azurerm_storage_account.tfstate.name}"
-    container_name       = "${azurerm_storage_container.tfstate.name}"
-    key                  = "statebucket/terraform.tfstate"
-    subscription_id      = "set_me"
-    tenant_id            = "${data.azuread_client_config.current.tenant_id}"
-  }
-}
-INSTRUCTIONS
+output "terraform_backend_config" {
+  value       = local.enabled ? local.terraform_backend_config_content : ""
+  description = "Rendered Terraform backend config file"
 }
