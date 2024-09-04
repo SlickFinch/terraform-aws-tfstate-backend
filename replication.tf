@@ -91,7 +91,7 @@ resource "aws_s3_bucket_replication_configuration" "replication" {
   role   = one(aws_iam_role.replication[*].arn)
 
   rule {
-    id = module.this.id
+    id = var.s3_bucket_name
 
     status = "Enabled"
     filter {}

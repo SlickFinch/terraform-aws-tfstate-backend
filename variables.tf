@@ -3,6 +3,12 @@
 # These variables pass in general data from the calling module, such as the AWS Region and billing tags.
 # ---------------------------------------------------------------------------------------------------------------------
 
+variable "enabled" {
+  description = "Set to false to prevent the module from creating any resources"
+  type        = bool
+  default     = true
+}
+
 variable "default_tags" {
   description = "Default billing tags to be applied across all resources"
   type        = map(string)

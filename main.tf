@@ -1,5 +1,5 @@
 locals {
-  enabled = module.this.enabled
+  enabled = var.enabled
 
   bucket_enabled   = local.enabled && var.bucket_enabled
   dynamodb_enabled = local.enabled && var.dynamodb_enabled
@@ -256,7 +256,7 @@ resource "aws_dynamodb_table" "with_server_side_encryption" {
     type = "S"
   }
 
-  tags = module.dynamodb_table_label.tags
+  tags = var.default_tags
 }
 
 resource "local_file" "terraform_backend_config" {

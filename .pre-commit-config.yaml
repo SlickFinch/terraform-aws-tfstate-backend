@@ -1,19 +1,20 @@
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v4.5.0
+    rev: v4.6.0
     hooks:
       - id: trailing-whitespace
         args: ['--markdown-linebreak-ext=md']
       - id: end-of-file-fixer
       - id: check-merge-conflict
       - id: detect-private-key
-  - repo: git://github.com/antonbabenko/pre-commit-terraform
-    rev: v1.89.1
-    hooks:
-      - id: terraform_fmt
-      - id: terraform_docs
-        args:
-          - '--args=--lockfile=false'
-          - --hook-config=--add-to-existing-file=true
-          - --hook-config=--create-file-if-not-exist=true
-          - '--args=--sort=false'
+  # - repo: git://github.com/antonbabenko/pre-commit-terraform
+  #   rev: v1.94.1
+  #   hooks:
+  #     - id: terraform_fmt
+  #     - id: terraform_docs
+  #       args:
+  #         - '--args=--lockfile=false'
+  #         - --hook-config=--add-to-existing-file=true
+  #         - --hook-config=--create-file-if-not-exist=true
+  #         - --hook-config=--tf-path=tofu
+  #         - '--args=--sort=false'
