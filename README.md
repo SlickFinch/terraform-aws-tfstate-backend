@@ -1,6 +1,6 @@
-# terraform-azurerm-tfstate-backend
+# terraform-aws-tfstate-backend
 
-Terraform module that provisions an Azure Storage account to store the `terraform.tfstate` file, and a Key Vault to store the customer-managed encryption key.
+Terraform module that provisions an AWS S3 to store the `terraform.tfstate` file, and a DynamoDB table to manage Terraform state.
 
 <!-- BEGINNING OF PRE-COMMIT-TERRAFORM DOCS HOOK -->
 ## Requirements
@@ -16,9 +16,9 @@ Terraform module that provisions an Azure Storage account to store the `terrafor
 
 | Name | Version |
 |------|---------|
+| <a name="provider_aws"></a> [aws](#provider\_aws) | >= 4.9.0 |
 | <a name="provider_time"></a> [time](#provider\_time) | >= 0.7.1 |
 | <a name="provider_local"></a> [local](#provider\_local) | >= 2.0 |
-| <a name="provider_aws"></a> [aws](#provider\_aws) | >= 4.9.0 |
 
 ## Modules
 
