@@ -13,9 +13,5 @@ terraform {
       role_arn = "${role_arn}"
     }
     %{~ endif ~}
-    %{~ if dynamodb_table != "" ~}
-
-    dynamodb_table = "${dynamodb_table}"
-    %{~ endif ~}
   }
 }

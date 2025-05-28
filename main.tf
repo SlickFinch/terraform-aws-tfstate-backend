@@ -2,9 +2,6 @@ locals {
   enabled = var.enabled
 
   bucket_enabled   = local.enabled && var.bucket_enabled
-  dynamodb_enabled = local.enabled && var.dynamodb_enabled
-
-  dynamodb_table_name = local.dynamodb_enabled ? var.dynamodb_table_name : ""
 
   prevent_unencrypted_uploads = local.enabled && var.prevent_unencrypted_uploads
 
@@ -23,16 +20,12 @@ locals {
     # Template file inputs cannot be null, so we use empty string if the variable is null
     bucket = try(aws_s3_bucket.default[0].id, "")
 
-    dynamodb_table = try(aws_dynamodb_table.with_server_side_encryption[0].name, "")
-
     encrypt              = "true"
     role_arn             = var.role_arn == null ? "" : var.role_arn
     profile              = var.profile == null ? "" : var.profile
     terraform_version    = var.terraform_version == null ? "" : var.terraform_version
     terraform_state_file = var.terraform_state_file == null ? "" : var.terraform_state_file
   })
-
-  labels_enabled = local.enabled && (var.s3_bucket_name == "" || var.s3_bucket_name == null)
 
   bucket_name = var.s3_bucket_name
 }
@@ -230,33 +223,6 @@ resource "time_sleep" "wait_for_aws_s3_bucket_settings" {
   depends_on       = [aws_s3_bucket_public_access_block.default, aws_s3_bucket_policy.default]
   create_duration  = "30s"
   destroy_duration = "30s"
-}
-
-resource "aws_dynamodb_table" "with_server_side_encryption" {
-  count                       = local.dynamodb_enabled ? 1 : 0
-  name                        = local.dynamodb_table_name
-  billing_mode                = var.billing_mode
-  read_capacity               = var.billing_mode == "PROVISIONED" ? var.read_capacity : null
-  write_capacity              = var.billing_mode == "PROVISIONED" ? var.write_capacity : null
-  deletion_protection_enabled = var.deletion_protection_enabled
-
-  # https://www.terraform.io/docs/backends/types/s3.html#dynamodb_table
-  hash_key = "LockID"
-
-  server_side_encryption { #tfsec:ignore:aws-dynamodb-table-customer-key
-    enabled = true
-  }
-
-  point_in_time_recovery {
-    enabled = var.enable_point_in_time_recovery
-  }
-
-  attribute {
-    name = "LockID"
-    type = "S"
-  }
-
-  tags = var.default_tags
 }
 
 resource "local_file" "terraform_backend_config" {
