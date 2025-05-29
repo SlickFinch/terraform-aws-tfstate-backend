@@ -1,7 +1,7 @@
 locals {
   enabled = var.enabled
 
-  bucket_enabled   = local.enabled && var.bucket_enabled
+  bucket_enabled = local.enabled && var.bucket_enabled
 
   prevent_unencrypted_uploads = local.enabled && var.prevent_unencrypted_uploads
 
