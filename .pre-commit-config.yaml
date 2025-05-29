@@ -14,7 +14,7 @@ repos:
       - id: terraform_docs
         args:
           - '--args=--lockfile=false'
+          - '--args=--sort-by=required'
           - --hook-config=--add-to-existing-file=true
           - --hook-config=--create-file-if-not-exist=true
           - --hook-config=--tf-path=tofu
-          - '--args=--sort=false'
