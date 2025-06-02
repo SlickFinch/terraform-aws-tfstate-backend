@@ -32,47 +32,16 @@ variable "acl" {
   default     = "private"
 }
 
-variable "billing_mode" {
-  type        = string
-  description = "DynamoDB billing mode"
-  default     = "PAY_PER_REQUEST"
-}
-
-variable "read_capacity" {
-  type        = number
-  description = "DynamoDB read capacity units when using provisioned mode"
-  default     = 5
-}
-
-variable "write_capacity" {
-  type        = number
-  description = "DynamoDB write capacity units when using provisioned mode"
-  default     = 5
-}
-
 variable "force_destroy" {
   type        = bool
   description = "A boolean that indicates the S3 bucket can be destroyed even if it contains objects. These objects are not recoverable"
   default     = false
 }
 
-variable "deletion_protection_enabled" {
-  type        = bool
-  description = "A boolean that enables deletion protection for DynamoDB table"
-  default     = false
-}
-
-
 variable "mfa_delete" {
   type        = bool
   description = "A boolean that indicates that versions of S3 objects can only be deleted with MFA. ( Terraform cannot apply changes of this value; https://github.com/terraform-providers/terraform-provider-aws/issues/629 )"
   default     = false
-}
-
-variable "enable_point_in_time_recovery" {
-  type        = bool
-  description = "Enable DynamoDB point-in-time recovery"
-  default     = true
 }
 
 variable "enable_public_access_block" {
@@ -199,18 +168,6 @@ variable "bucket_enabled" {
   type        = bool
   default     = true
   description = "Whether to create the S3 bucket."
-}
-
-variable "dynamodb_enabled" {
-  type        = bool
-  default     = true
-  description = "Whether to create the DynamoDB table."
-}
-
-variable "dynamodb_table_name" {
-  type        = string
-  default     = null
-  description = "Override the name of the DynamoDB table which defaults to using `module.dynamodb_table_label.id`"
 }
 
 variable "permissions_boundary" {
