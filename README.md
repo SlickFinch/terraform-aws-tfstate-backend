@@ -2,6 +2,26 @@
 
 Terraform module that provisions an AWS S3 to store the `terraform.tfstate` file to manage Terraform state.
 
+## Usage
+
+Pin the module to a release tag:
+
+```hcl
+module "tfstate_backend" {
+  source = "git::https://github.com/SlickFinch/terraform-aws-tfstate-backend.git?ref=v1.0.1"
+
+  s3_bucket_name = "example-tfstate"
+}
+```
+
+## Versioning
+
+Releases follow [semantic versioning](https://semver.org). Each release is a `vMAJOR.MINOR.PATCH` git tag with a GitHub release. [CHANGELOG.md](CHANGELOG.md) lists the changes in each release.
+
+- **Patch:** bug fixes. No change to inputs, outputs or resources.
+- **Minor:** new inputs or outputs with safe defaults.
+- **Major:** anything that makes callers change code, raises a provider floor, or replaces resources.
+
 <!-- BEGIN_TF_DOCS -->
 ## Requirements
 
@@ -46,7 +66,6 @@ No modules.
 | [aws_iam_policy_document.bucket_policy](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/iam_policy_document) | data source |
 | [aws_iam_policy_document.replication](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/iam_policy_document) | data source |
 | [aws_iam_policy_document.replication_sts](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/iam_policy_document) | data source |
-| [aws_region.current](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/region) | data source |
 
 ## Inputs
 

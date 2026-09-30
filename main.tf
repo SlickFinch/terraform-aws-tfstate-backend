@@ -16,7 +16,9 @@ locals {
   terraform_backend_config_template_file = var.terraform_backend_config_template_file != "" ? var.terraform_backend_config_template_file : "${path.module}/templates/terraform.tf.tpl"
 
   terraform_backend_config_content = templatefile(local.terraform_backend_config_template_file, {
-    region = data.aws_region.current.name
+    # aws_s3_bucket.region works on AWS provider v5 and v6. data.aws_region's
+    # "name" is deprecated in v6, and its replacement "region" doesn't exist in v5.
+    region = try(aws_s3_bucket.default[0].region, "")
     # Template file inputs cannot be null, so we use empty string if the variable is null
     bucket = try(aws_s3_bucket.default[0].id, "")
 
@@ -29,8 +31,6 @@ locals {
 
   bucket_name = var.s3_bucket_name
 }
-
-data "aws_region" "current" {}
 
 data "aws_iam_policy_document" "aggregated_policy" {
   count = local.enabled ? 1 : 0
